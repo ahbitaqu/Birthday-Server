@@ -1,7 +1,5 @@
 package me.qyue.bd;
 
-import com.sun.tools.javac.Main;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -47,7 +45,7 @@ public class BdServerApplication {
             System.out.println("Connection successful!");
         } catch (SQLException | IOException | ClassNotFoundException e) {
             System.out.println("Connection unsuccessful - aborting...");
-            e.printStackTrace();
+//            e.printStackTrace();
             return;
         }
         SpringApplication.run(BdServerApplication.class, args);
@@ -70,7 +68,7 @@ public class BdServerApplication {
             String res = resultSet.getString(1);
             return res;
         } catch (SQLException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
             return "Something went wrong!";
         }
     }
