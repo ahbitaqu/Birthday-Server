@@ -56,9 +56,9 @@ public class BdServerApplication {
                 PASSWORD = br.readLine();
                 br.close();
                 System.out.println("closed file");
-                connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
-                System.out.println("Connection successful!");
             }
+            connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+            System.out.println("Connection successful!");
         }
     }
 
