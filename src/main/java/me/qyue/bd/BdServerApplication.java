@@ -24,25 +24,16 @@ import java.util.*;
 public class BdServerApplication {
 
     static final String USERNAME = "qyue";
-    static String PASSWORD = "";
+    static String PASSWORD = null;
     static final String DATABASE = "qyuepi";
     static final String URL = "jdbc:mariadb://127.0.0.1:3306/" + DATABASE;
     static Connection connection;
+    static String ERROR_MSG = "Something went wrong!";
 
 
     public static void main(String[] args) {
         try {
-            System.out.println("Connecting to Database...");
-            Class.forName ("org.mariadb.jdbc.Driver");
-            System.out.println("opening file ...");
-            BufferedReader br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(
-                    BdServerApplication.class.getClassLoader().getResourceAsStream("database.pw"))));
-            PASSWORD = br.readLine();
-            br.close();
-            System.out.println("closed file");
-            connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
-            System.out.println("connect");
-            System.out.println("Connection successful!");
+            ensureConnection();
         } catch (SQLException | IOException | ClassNotFoundException e) {
             System.out.println("Connection unsuccessful - aborting...");
 //            e.printStackTrace();
@@ -50,9 +41,41 @@ public class BdServerApplication {
         }
         SpringApplication.run(BdServerApplication.class, args);
     }
+
+    public static void ensureConnection() throws ClassNotFoundException, IOException, SQLException {
+        try {
+            connection.prepareStatement("SELECT 1").executeQuery();
+        } catch (SQLException | NullPointerException e) {
+            System.out.println("Database connection is closed. Trying to connect...");
+            Class.forName ("org.mariadb.jdbc.Driver");
+            if (PASSWORD == null) {
+                System.out.println("opening file ...");
+                BufferedReader br = new BufferedReader(new InputStreamReader(Objects.requireNonNull(
+                        BdServerApplication.class.getClassLoader().getResourceAsStream("database.pw"))));
+                PASSWORD = br.readLine();
+                br.close();
+                System.out.println("closed file");
+                connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+                System.out.println("Connection successful!");
+            }
+        }
+    }
+
+
+
+    //
+    // REST Mappings
+    //
+
     @GetMapping("/api/birthday")
     public String getBirthday(@RequestParam(value = "first_name") String first_name,
                               @RequestParam(value = "last_name") String last_name) {
+        try {
+            ensureConnection();
+        } catch (SQLException | IOException | ClassNotFoundException e) {
+            System.out.println("Could not connect to database! Aborting...");
+            return ERROR_MSG;
+        }
         System.out.println("Performing Query...");
         ResultSet resultSet;
         try {
@@ -69,12 +92,20 @@ public class BdServerApplication {
             return res;
         } catch (SQLException e) {
 //            e.printStackTrace();
-            return "Something went wrong!";
+            return ERROR_MSG;
         }
     }
 
     @GetMapping("/api/birthdays")
     public ArrayList getBirthdays() {
+        try {
+            ensureConnection();
+        } catch (SQLException | IOException | ClassNotFoundException e) {
+            System.out.println("Could not connect to database! Aborting...");
+            ArrayList<String> l = new ArrayList<>();
+            l.add(ERROR_MSG);
+            return l;
+        }
         System.out.println("Performing Query...");
         ResultSet resultSet;
         try {
@@ -92,13 +123,22 @@ public class BdServerApplication {
             return list;
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
-            l.add("Something went wrong!");
+            l.add(ERROR_MSG);
             return l;
         }
     }
 
     @GetMapping("/api/upcomingBirthdays")
     public ArrayList getUpcomingBirthdays() {
+
+        try {
+            ensureConnection();
+        } catch (SQLException | IOException | ClassNotFoundException e) {
+            System.out.println("Could not connect to database! Aborting...");
+            ArrayList<String> l = new ArrayList<>();
+            l.add(ERROR_MSG);
+            return l;
+        }
 
         LocalDate nowDate = LocalDate.now();
         LocalDate afterMonth = nowDate.plusMonths(1);
@@ -142,7 +182,7 @@ public class BdServerApplication {
             return list;
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
-            l.add("Something went wrong!");
+            l.add(ERROR_MSG);
             return l;
         }
     }
@@ -155,6 +195,12 @@ public class BdServerApplication {
             return "Invalid Date!";
         }
         try {
+            ensureConnection();
+        } catch (SQLException | IOException | ClassNotFoundException e) {
+            System.out.println("Could not connect to database! Aborting...");
+            return ERROR_MSG;
+        }
+        try {
             String update = "INSERT INTO birthdays (first_name, last_name, birthday) VALUES (?, ?, ?);";
             PreparedStatement preparedStatement = connection.prepareStatement(update);
             preparedStatement.setString(1, data.first_name().toLowerCase());
@@ -163,7 +209,7 @@ public class BdServerApplication {
             int res = preparedStatement.executeUpdate();
             return res > 0 ? "Successfully inserted!" : "Insert failed!";
         } catch (SQLException e) {
-            return "Something went wrong!";
+            return ERROR_MSG;
         }
     }
 
