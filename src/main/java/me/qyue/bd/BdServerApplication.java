@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.util.Objects;
 import me.qyue.bd.model.Data;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.*;
@@ -68,13 +69,13 @@ public class BdServerApplication {
     //
 
     @GetMapping("/api/birthday")
-    public String getBirthday(@RequestParam(value = "first_name") String first_name,
-                              @RequestParam(value = "last_name") String last_name) {
+    public ResponseEntity<String> getBirthday(@RequestParam(value = "first_name") String first_name,
+                                      @RequestParam(value = "last_name") String last_name) {
         try {
             ensureConnection();
         } catch (SQLException | IOException | ClassNotFoundException e) {
             System.out.println("Could not connect to database! Aborting...");
-            return ERROR_MSG;
+            return ResponseEntity.internalServerError().body(ERROR_MSG);
         }
         System.out.println("Performing Query...");
         ResultSet resultSet;
@@ -86,25 +87,25 @@ public class BdServerApplication {
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
             if(!resultSet.next()) {
-                return "No Data found! :(";
+                return ResponseEntity.badRequest().body("No Data found! :(");
             }
             String res = resultSet.getString(1);
-            return res;
+            return ResponseEntity.ok().body(res);
         } catch (SQLException e) {
 //            e.printStackTrace();
-            return ERROR_MSG;
+            return ResponseEntity.internalServerError().body(ERROR_MSG);
         }
     }
 
     @GetMapping("/api/birthdays")
-    public ArrayList getBirthdays() {
+    public ResponseEntity<ArrayList> getBirthdays() {
         try {
             ensureConnection();
         } catch (SQLException | IOException | ClassNotFoundException e) {
             System.out.println("Could not connect to database! Aborting...");
             ArrayList<String> l = new ArrayList<>();
             l.add(ERROR_MSG);
-            return l;
+            return ResponseEntity.internalServerError().body(l);
         }
         System.out.println("Performing Query...");
         ResultSet resultSet;
@@ -114,22 +115,22 @@ public class BdServerApplication {
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
             ArrayList<HashMap<String, String>> list = new ArrayList<>();
-            if (!resultSet.next()) return list;
+            if (!resultSet.next()) return ResponseEntity.ok().body(list);
             do {
                 HashMap<String, String> h = new HashMap<>();
                 h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
                 list.add(h);
             } while (resultSet.next());
-            return list;
+            return ResponseEntity.ok().body(list);
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
             l.add(ERROR_MSG);
-            return l;
+            return ResponseEntity.internalServerError().body(l);
         }
     }
 
     @GetMapping("/api/upcomingBirthdays")
-    public ArrayList getUpcomingBirthdays() {
+    public ResponseEntity<ArrayList> getUpcomingBirthdays() {
 
         try {
             ensureConnection();
@@ -137,7 +138,7 @@ public class BdServerApplication {
             System.out.println("Could not connect to database! Aborting...");
             ArrayList<String> l = new ArrayList<>();
             l.add(ERROR_MSG);
-            return l;
+            return ResponseEntity.internalServerError().body(l);
         }
 
         LocalDate nowDate = LocalDate.now();
@@ -151,7 +152,7 @@ public class BdServerApplication {
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
             ArrayList<HashMap<String, String>> list = new ArrayList<>();
-            if (!resultSet.next()) return list;
+            if (!resultSet.next()) return ResponseEntity.ok().body(list);
             do {
                 String bd = resultSet.getString(3);
                 LocalDate birthday = LocalDate.parse(bd, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
@@ -179,26 +180,26 @@ public class BdServerApplication {
                 }
             });
 
-            return list;
+            return ResponseEntity.ok().body(list);
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
             l.add(ERROR_MSG);
-            return l;
+            return ResponseEntity.internalServerError().body(l);
         }
     }
 
     @PostMapping("/api/addBirthday")
-    public String addBirthday(@RequestBody Data data) {
+    public ResponseEntity<String> addBirthday(@RequestBody Data data) {
         try {
             LocalDate.parse(data.birthday(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         } catch(DateTimeParseException e) {
-            return "Invalid Date!";
+            return ResponseEntity.badRequest().body("Invalid Date!");
         }
         try {
             ensureConnection();
         } catch (SQLException | IOException | ClassNotFoundException e) {
             System.out.println("Could not connect to database! Aborting...");
-            return ERROR_MSG;
+            return ResponseEntity.internalServerError().body(ERROR_MSG);
         }
         try {
             String update = "INSERT INTO birthdays (first_name, last_name, birthday) VALUES (?, ?, ?);";
@@ -207,9 +208,10 @@ public class BdServerApplication {
             preparedStatement.setString(2, data.last_name().toLowerCase());
             preparedStatement.setString(3, data.birthday().toLowerCase());
             int res = preparedStatement.executeUpdate();
-            return res > 0 ? "Successfully inserted!" : "Insert failed!";
+            String msg =  res > 0 ? "Successfully inserted!" : "Insert failed!";
+            return ResponseEntity.ok().body(msg);
         } catch (SQLException e) {
-            return ERROR_MSG;
+            return ResponseEntity.internalServerError().body(ERROR_MSG);
         }
     }
 
