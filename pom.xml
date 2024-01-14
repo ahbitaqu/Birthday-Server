@@ -10,7 +10,7 @@
     </parent>
     <groupId>me.qyue</groupId>
     <artifactId>BD-Server</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
     <name>BD-Server</name>
     <description>BD-Server</description>
     <properties>
