@@ -1,5 +1,6 @@
 package me.qyue.bd;
 
+import me.qyue.bd.utils.DateComparator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -115,12 +116,45 @@ public class BdServerApplication {
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
             ArrayList<HashMap<String, String>> list = new ArrayList<>();
-            if (!resultSet.next()) return ResponseEntity.ok().body(list);
-            do {
+            while (resultSet.next()){
                 HashMap<String, String> h = new HashMap<>();
                 h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
                 list.add(h);
-            } while (resultSet.next());
+            }
+            list.sort(new DateComparator());
+            return ResponseEntity.ok().body(list);
+        } catch (SQLException e) {
+            ArrayList<String> l = new ArrayList<>();
+            l.add(ERROR_MSG);
+            return ResponseEntity.internalServerError().body(l);
+        }
+    }
+
+    @GetMapping("/api/todaysBirthdays")
+    public ResponseEntity<ArrayList> getTodaysBirthdays() {
+        try {
+            ensureConnection();
+        } catch(SQLException | IOException | ClassNotFoundException e) {
+            System.out.println("Could not connect to database! Aborting...");
+            ArrayList<String> l = new ArrayList<>();
+            l.add(ERROR_MSG);
+            return ResponseEntity.internalServerError().body(l);
+        }
+
+        System.out.println("Performing Query...");
+        ResultSet resultSet;
+        try {
+            String query = "SELECT * FROM birthdays WHERE DATE_FORMAT(STR_TO_DATE(birthday, '%d-%m-%Y'), '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')";
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            resultSet = preparedStatement.executeQuery();
+            System.out.println("Done!");
+            ArrayList<HashMap<String, String>> list = new ArrayList<>();
+            while (resultSet.next()) {
+                HashMap<String, String> h = new HashMap<>();
+                h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
+                list.add(h);
+            }
+            list.sort(new DateComparator());
             return ResponseEntity.ok().body(list);
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
@@ -141,45 +175,35 @@ public class BdServerApplication {
             return ResponseEntity.internalServerError().body(l);
         }
 
-        LocalDate nowDate = LocalDate.now();
-        LocalDate afterMonth = nowDate.plusMonths(1);
+//        LocalDate nowDate = LocalDate.now();
+//        LocalDate afterMonth = nowDate.plusMonths(1);
 
         System.out.println("Performing Query...");
         ResultSet resultSet;
         try {
-            String query = "SELECT * FROM birthdays";
+            String query = "SELECT * FROM birthdays WHERE DATE_FORMAT(STR_TO_DATE(birthday, '%d-%m-%Y'), '%m-%d') BETWEEN DATE_FORMAT(CURDATE(), '%m-%d') and DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%m-%d')"; // order by MONTH(STR_TO_DATE(birthday, '%d-%m-%Y')), DAY(STR_TO_DATE(birthday, '%d-%m-%Y'))";
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
             ArrayList<HashMap<String, String>> list = new ArrayList<>();
-            if (!resultSet.next()) return ResponseEntity.ok().body(list);
-            do {
-                String bd = resultSet.getString(3);
-                LocalDate birthday = LocalDate.parse(bd, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-                birthday = birthday.withYear(nowDate.getYear());
-                if(birthday.isAfter(nowDate) && afterMonth.isAfter(birthday)) {
-                    HashMap<String, String> h = new HashMap<>();
-                    h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
-                    list.add(h);
-                }
-            } while (resultSet.next());
+            while (resultSet.next()) {
+                HashMap<String, String> h = new HashMap<>();
+                h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
+                list.add(h);
+            }
+//            if (!resultSet.next()) return ResponseEntity.ok().body(list);
+//            do {
+//                String bd = resultSet.getString(3);
+//                LocalDate birthday = LocalDate.parse(bd, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+//                birthday = birthday.withYear(nowDate.getYear());
+//                if(birthday.isAfter(nowDate) && afterMonth.isAfter(birthday)) {
+//                    HashMap<String, String> h = new HashMap<>();
+//                    h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
+//                    list.add(h);
+//                }
+//            } while (resultSet.next());
 
-            list.sort((o1, o2) -> {
-                // DateFormat: "dd-MM-yyyy"
-                String[] first = o1.values().toArray(new String[0]);
-                first = first[0].split("-");
-                String[] second = o2.values().toArray(new String[0]);
-                second = second[0].split("-");
-                //comparing if the month is equal
-                if (Objects.equals(Integer.parseInt(first[1]), Integer.parseInt(second[1]))) {
-                    //comparing if day is equal
-                    if (Integer.parseInt(first[0]) == Integer.parseInt(second[0])) return 0;
-                    return Integer.parseInt(first[0]) < Integer.parseInt(second[0]) ? -1 : 1;
-                } else {
-                    return Integer.parseInt(first[1]) < Integer.parseInt(second[1]) ? -1 : 1;
-                }
-            });
-
+            list.sort(new DateComparator());
             return ResponseEntity.ok().body(list);
         } catch (SQLException e) {
             ArrayList<String> l = new ArrayList<>();
@@ -207,9 +231,19 @@ public class BdServerApplication {
             preparedStatement.setString(1, data.first_name().toLowerCase());
             preparedStatement.setString(2, data.last_name().toLowerCase());
             preparedStatement.setString(3, data.birthday().toLowerCase());
+            System.out.println("Inserting entry:\tfirst_name: '" + data.first_name() + "', last_name: '" + data.last_name() + "', birthday: '" + data.birthday() + "'");
             int res = preparedStatement.executeUpdate();
-            String msg =  res > 0 ? "Successfully inserted!" : "Insert failed!";
-            return ResponseEntity.ok().body(msg);
+            String msg;
+            //TODO: check validity
+            if (res > 0) {
+                msg = "Successfully inserted!";
+                System.out.println(msg);
+                return ResponseEntity.ok().body(msg);
+            } else {
+                msg = "Insert failed!";
+                System.out.println(msg);
+                return ResponseEntity.badRequest().body(msg);
+            }
         } catch (SQLException e) {
             return ResponseEntity.internalServerError().body(ERROR_MSG);
         }
