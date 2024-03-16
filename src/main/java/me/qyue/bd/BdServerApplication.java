@@ -70,7 +70,7 @@ public class BdServerApplication {
     //
 
     @GetMapping("/api/birthday")
-    public ResponseEntity<String> getBirthday(@RequestParam(value = "first_name") String first_name,
+    public ResponseEntity getBirthday(@RequestParam(value = "first_name") String first_name,
                                       @RequestParam(value = "last_name") String last_name) {
         try {
             ensureConnection();
@@ -91,7 +91,7 @@ public class BdServerApplication {
                 return ResponseEntity.badRequest().body("No Data found! :(");
             }
             String res = resultSet.getString(1);
-            return ResponseEntity.ok().body(res);
+            return ResponseEntity.ok().body(new Data(first_name, last_name, res));
         } catch (SQLException e) {
 //            e.printStackTrace();
             return ResponseEntity.internalServerError().body(ERROR_MSG);
@@ -115,11 +115,9 @@ public class BdServerApplication {
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
-            ArrayList<HashMap<String, String>> list = new ArrayList<>();
+            ArrayList<Data> list = new ArrayList<>();
             while (resultSet.next()){
-                HashMap<String, String> h = new HashMap<>();
-                h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
-                list.add(h);
+                list.add(new Data(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3)));
             }
             list.sort(new DateComparator());
             return ResponseEntity.ok().body(list);
@@ -148,11 +146,9 @@ public class BdServerApplication {
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
-            ArrayList<HashMap<String, String>> list = new ArrayList<>();
+            ArrayList<Data> list = new ArrayList<>();
             while (resultSet.next()) {
-                HashMap<String, String> h = new HashMap<>();
-                h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
-                list.add(h);
+                list.add(new Data(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3)));
             }
             list.sort(new DateComparator());
             return ResponseEntity.ok().body(list);
@@ -175,8 +171,6 @@ public class BdServerApplication {
             return ResponseEntity.internalServerError().body(l);
         }
 
-//        LocalDate nowDate = LocalDate.now();
-//        LocalDate afterMonth = nowDate.plusMonths(1);
 
         System.out.println("Performing Query...");
         ResultSet resultSet;
@@ -185,23 +179,10 @@ public class BdServerApplication {
             PreparedStatement preparedStatement = connection.prepareStatement(query);
             resultSet = preparedStatement.executeQuery();
             System.out.println("Done!");
-            ArrayList<HashMap<String, String>> list = new ArrayList<>();
+            ArrayList<Data> list = new ArrayList<>();
             while (resultSet.next()) {
-                HashMap<String, String> h = new HashMap<>();
-                h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
-                list.add(h);
+                list.add(new Data(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3)));
             }
-//            if (!resultSet.next()) return ResponseEntity.ok().body(list);
-//            do {
-//                String bd = resultSet.getString(3);
-//                LocalDate birthday = LocalDate.parse(bd, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-//                birthday = birthday.withYear(nowDate.getYear());
-//                if(birthday.isAfter(nowDate) && afterMonth.isAfter(birthday)) {
-//                    HashMap<String, String> h = new HashMap<>();
-//                    h.put(resultSet.getString(1) + " " + resultSet.getString(2), resultSet.getString(3));
-//                    list.add(h);
-//                }
-//            } while (resultSet.next());
 
             list.sort(new DateComparator());
             return ResponseEntity.ok().body(list);
